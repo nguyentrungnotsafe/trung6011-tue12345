@@ -22,7 +22,6 @@
         .send-btn { background: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
     </style>
 
-    <!-- Thư viện Firebase v8 (Dễ dùng cho người mới) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
@@ -34,39 +33,33 @@
         <div class="chat-box" id="chatBox"></div>
         <div class="input-area">
             <input type="text" id="messageInput" placeholder="Nhập tin nhắn...">
-            
             <div class="file-upload">
                 <button class="icon-btn">📷</button>
                 <input type="file" id="mediaInput" accept="image/*, video/*">
             </div>
-
             <button class="icon-btn" id="recordBtn" onclick="toggleRecording()">🎤</button>
             <button class="send-btn" onclick="sendMessage()">Gửi</button>
         </div>
     </div>
 
     <script>
-        const MY_NAME = "tue12345"; // Đối với file nguoi2.html, sửa thành "Người 2"
+        // Tên tài khoản của Người 2
+        const MY_NAME = "tue12345"; 
 
-        // ==========================================
-        // DÁN FIREBASE CONFIG CỦA BẠN VÀO ĐÂY
-        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyCbMi4MRMyEgQ4W6rv3tAtTwdECCdrTIFU",
             authDomain: "trung6011-tue12345.firebaseapp.com",
-            databaseURL: "https://trung6011-tue12345-default-rtdb.asia-southeast1.firebasedatabase.appY", // Đảm bảo có dòng này!
+            databaseURL: "https://trung6011-tue12345-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "trung6011-tue12345",
             storageBucket: "trung6011-tue12345.firebasestorage.app",
             messagingSenderId: "853585272091",
             appId: "1:853585272091:web:e86e41b25730ee2ccb87be"
         };
         
-        // Khởi tạo Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         const messagesRef = db.ref("chat_messages");
 
-        // --- PHẦN GHI ÂM ---
         let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
@@ -101,7 +94,6 @@
             }
         }
 
-        // --- GỬI TIN NHẮN ---
         function sendMessage() {
             const text = document.getElementById('messageInput').value.trim();
             const file = document.getElementById('mediaInput').files[0];
@@ -119,7 +111,6 @@
             document.getElementById('mediaInput').value = '';
         }
 
-        // --- LƯU LÊN FIREBASE THAY VÌ LOCAL STORAGE ---
         function saveMsgToFirebase(text, mediaSrc, mediaType) {
             messagesRef.push({
                 username: MY_NAME,
@@ -130,13 +121,11 @@
             }).catch(error => alert("Lỗi khi gửi, có thể file quá nặng!"));
         }
 
-        // --- LẮNG NGHE TIN NHẮN MỚI TỪ FIREBASE (REAL-TIME) ---
         messagesRef.on("child_added", (snapshot) => {
             const msg = snapshot.val();
             renderSingleMessage(msg);
         });
 
-        // --- HIỂN THỊ LÊN MÀN HÌNH ---
         function renderSingleMessage(msg) {
             const chatBox = document.getElementById('chatBox');
             const isMe = msg.username === MY_NAME;
@@ -171,7 +160,5 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
     </script>
-</body>
-</html>
 </body>
 </html>
