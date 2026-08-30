@@ -7,17 +7,13 @@
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .chat-container { width: 400px; background: #fff; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
-        
         .chat-header { background: #007bff; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: bold; }
-        .call-buttons button { background: none; border: none; font-size: 18px; cursor: pointer; color: white; margin-left: 10px; }
-        
         .chat-box { height: 400px; padding: 15px; overflow-y: auto; background-color: #e5ddd5; display: flex; flex-direction: column; gap: 10px; }
         .message { max-width: 75%; padding: 10px; border-radius: 10px; font-size: 14px; word-wrap: break-word; }
         .message.me { align-self: flex-end; background-color: #dcf8c6; }
         .message.other { align-self: flex-start; background-color: #ffffff; }
         .message .sender-name { font-weight: bold; margin-bottom: 5px; font-size: 11px; color: #555; }
         .message img, .message video, .message audio { max-width: 100%; border-radius: 8px; margin-top: 5px; }
-        
         .input-area { padding: 15px; background: #f0f0f0; display: flex; gap: 10px; align-items: center; }
         input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; outline: none; }
         .file-upload { position: relative; overflow: hidden; display: inline-block; }
@@ -25,15 +21,15 @@
         .icon-btn { background: #6c757d; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px;}
         .send-btn { background: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
     </style>
+
+    <!-- Thư viện Firebase v8 (Dễ dùng cho người mới) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
     <div class="chat-container">
         <div class="chat-header">
             <span>Tài khoản: trung6011</span>
-            <div class="call-buttons">
-                <button onclick="alert('Để gọi điện qua mạng, cần tích hợp thư viện WebRTC!')">📞</button>
-                <button onclick="alert('Để gọi video qua mạng, cần tích hợp thư viện WebRTC!')">📹</button>
-            </div>
         </div>
         <div class="chat-box" id="chatBox"></div>
         <div class="input-area">
@@ -44,129 +40,137 @@
                 <input type="file" id="mediaInput" accept="image/*, video/*">
             </div>
 
-            <!-- Nút Ghi Âm -->
             <button class="icon-btn" id="recordBtn" onclick="toggleRecording()">🎤</button>
-            
             <button class="send-btn" onclick="sendMessage()">Gửi</button>
         </div>
     </div>
 
     <script>
-        const MY_NAME = "trung6011"; 
+        const MY_NAME = "trung6011"; // Đối với file nguoi2.html, sửa thành "Người 2"
+
+        // ==========================================
+        // DÁN FIREBASE CONFIG CỦA BẠN VÀO ĐÂY
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCbMi4MRMyEgQ4W6rv3tAtTwdECCdrTIFU",
+            authDomain: "trung6011-tue12345.firebaseapp.com",
+            databaseURL: "https://trung6011-tue12345-default-rtdb.asia-southeast1.firebasedatabase.appY", // Đảm bảo có dòng này!
+            projectId: "trung6011-tue12345",
+            storageBucket: "trung6011-tue12345.firebasestorage.app",
+            messagingSenderId: "853585272091",
+            appId: "1:853585272091:web:e86e41b25730ee2ccb87be"
+            measurementId: "G-47BDP5L7DS"
+        };
         
-        // --- PHẦN GHI ÂM (VOICE MESSAGE) ---
+        // Khởi tạo Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const messagesRef = db.ref("chat_messages");
+
+        // --- PHẦN GHI ÂM ---
         let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
 
-        // Xin quyền sử dụng Micro ngay khi mở trang
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(stream => {
-                mediaRecorder = new MediaRecorder(stream);
-                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                mediaRecorder.onstop = () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    audioChunks = []; 
-                    
-                    // Chuyển âm thanh thành dạng Base64 để lưu vào localStorage
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        saveMsg('', e.target.result, 'audio/webm');
-                    };
-                    reader.readAsDataURL(audioBlob);
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                audioChunks = []; 
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    saveMsgToFirebase('', e.target.result, 'audio/webm');
                 };
-            })
-            .catch(err => console.log("Lỗi hoặc chưa cấp quyền Micro: ", err));
+                reader.readAsDataURL(audioBlob);
+            };
+        }).catch(err => console.log("Lỗi Micro: ", err));
 
         function toggleRecording() {
             const btn = document.getElementById('recordBtn');
-            if (!mediaRecorder) {
-                alert("Bạn cần cho phép trang web sử dụng Micro để ghi âm!");
-                return;
-            }
+            if (!mediaRecorder) return alert("Cần cấp quyền Micro!");
             if (!isRecording) {
                 mediaRecorder.start();
                 isRecording = true;
                 btn.style.backgroundColor = "red";
-                btn.textContent = "⏹️"; // Đổi thành icon dừng
+                btn.textContent = "⏹️";
             } else {
                 mediaRecorder.stop();
                 isRecording = false;
                 btn.style.backgroundColor = "#6c757d";
-                btn.textContent = "🎤"; // Trở lại icon micro
+                btn.textContent = "🎤";
             }
         }
-        // ------------------------------------
 
-        function getMessages() { return JSON.parse(localStorage.getItem('chatAppMessages')) || []; }
-
-        function renderMessages() {
-            const chatBox = document.getElementById('chatBox');
-            chatBox.innerHTML = '';
-            
-            getMessages().forEach(msg => {
-                const isMe = msg.username === MY_NAME;
-                const msgDiv = document.createElement('div');
-                msgDiv.className = `message ${isMe ? 'me' : 'other'}`;
-
-                const nameDiv = document.createElement('div');
-                nameDiv.className = 'sender-name';
-                nameDiv.textContent = msg.username;
-                msgDiv.appendChild(nameDiv);
-
-                if (msg.text) msgDiv.appendChild(document.createTextNode(msg.text));
-
-                if (msg.media) {
-                    if (msg.mediaType.startsWith('image/')) {
-                        const img = document.createElement('img');
-                        img.src = msg.media;
-                        msgDiv.appendChild(img);
-                    } else if (msg.mediaType.startsWith('video/')) {
-                        const video = document.createElement('video');
-                        video.src = msg.media;
-                        video.controls = true;
-                        msgDiv.appendChild(video);
-                    } else if (msg.mediaType.startsWith('audio/')) {
-                        const audio = document.createElement('audio');
-                        audio.src = msg.media;
-                        audio.controls = true;
-                        msgDiv.appendChild(audio);
-                    }
-                }
-                chatBox.appendChild(msgDiv);
-            });
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-
+        // --- GỬI TIN NHẮN ---
         function sendMessage() {
             const text = document.getElementById('messageInput').value.trim();
             const file = document.getElementById('mediaInput').files[0];
-
             if (!text && !file) return;
 
             if (file) {
                 const reader = new FileReader();
-                reader.onload = function(e) { saveMsg(text, e.target.result, file.type); };
+                reader.onload = function(e) { saveMsgToFirebase(text, e.target.result, file.type); };
                 reader.readAsDataURL(file);
             } else {
-                saveMsg(text, null, null);
+                saveMsgToFirebase(text, null, null);
             }
 
             document.getElementById('messageInput').value = '';
             document.getElementById('mediaInput').value = '';
         }
 
-        function saveMsg(text, mediaSrc, mediaType) {
-            try {
-                const messages = getMessages();
-                messages.push({ username: MY_NAME, text, media: mediaSrc, mediaType });
-                localStorage.setItem('chatAppMessages', JSON.stringify(messages));
-                renderMessages();
-            } catch (e) { alert("File quá lớn, bộ nhớ trình duyệt đã đầy!"); }
+        // --- LƯU LÊN FIREBASE THAY VÌ LOCAL STORAGE ---
+        function saveMsgToFirebase(text, mediaSrc, mediaType) {
+            messagesRef.push({
+                username: MY_NAME,
+                text: text,
+                media: mediaSrc,
+                mediaType: mediaType,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            }).catch(error => alert("Lỗi khi gửi, có thể file quá nặng!"));
         }
 
-        window.addEventListener('storage', renderMessages);
-        window.onload = renderMessages;
+        // --- LẮNG NGHE TIN NHẮN MỚI TỪ FIREBASE (REAL-TIME) ---
+        messagesRef.on("child_added", (snapshot) => {
+            const msg = snapshot.val();
+            renderSingleMessage(msg);
+        });
+
+        // --- HIỂN THỊ LÊN MÀN HÌNH ---
+        function renderSingleMessage(msg) {
+            const chatBox = document.getElementById('chatBox');
+            const isMe = msg.username === MY_NAME;
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${isMe ? 'me' : 'other'}`;
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'sender-name';
+            nameDiv.textContent = msg.username;
+            msgDiv.appendChild(nameDiv);
+
+            if (msg.text) msgDiv.appendChild(document.createTextNode(msg.text));
+
+            if (msg.media) {
+                if (msg.mediaType.startsWith('image/')) {
+                    const img = document.createElement('img');
+                    img.src = msg.media;
+                    msgDiv.appendChild(img);
+                } else if (msg.mediaType.startsWith('video/')) {
+                    const video = document.createElement('video');
+                    video.src = msg.media;
+                    video.controls = true;
+                    msgDiv.appendChild(video);
+                } else if (msg.mediaType.startsWith('audio/')) {
+                    const audio = document.createElement('audio');
+                    audio.src = msg.media;
+                    audio.controls = true;
+                    msgDiv.appendChild(audio);
+                }
+            }
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
     </script>
 </body>
 </html>
