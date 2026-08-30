@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat - Người 1</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .chat-container { width: 400px; background: #fff; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
+        .chat-header { background: #007bff; color: white; padding: 15px; text-align: center; font-size: 18px; font-weight: bold; }
+        .chat-box { height: 400px; padding: 15px; overflow-y: auto; background-color: #e5ddd5; display: flex; flex-direction: column; gap: 10px; }
+        .message { max-width: 75%; padding: 10px; border-radius: 10px; font-size: 14px; word-wrap: break-word; }
+        
+        /* Phân biệt tin nhắn của mình và người khác */
+        .message.me { align-self: flex-end; background-color: #dcf8c6; }
+        .message.other { align-self: flex-start; background-color: #ffffff; }
+        
+        .message .sender-name { font-weight: bold; margin-bottom: 5px; font-size: 11px; color: #555; }
+        .message img, .message video { max-width: 100%; border-radius: 8px; margin-top: 5px; }
+        .input-area { padding: 15px; background: #f0f0f0; display: flex; gap: 10px; }
+        input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; outline: none; }
+        .file-upload { position: relative; overflow: hidden; display: inline-block; }
+        .file-upload input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; height: 100%; }
+        .file-btn { background: #6c757d; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; }
+        .send-btn { background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">Tài khoản: Người 1</div>
+        <div class="chat-box" id="chatBox"></div>
+        <div class="input-area">
+            <input type="text" id="messageInput" placeholder="Nhập tin nhắn...">
+            <div class="file-upload">
+                <button class="file-btn">📷</button>
+                <input type="file" id="mediaInput" accept="image/*, video/*">
+            </div>
+            <button class="send-btn" onclick="sendMessage()">Gửi</button>
+        </div>
+    </div>
+
+    <script>
+        const MY_NAME = "Người 1"; // Tên đã được gài sẵn
+        
+        function getMessages() {
+            return JSON.parse(localStorage.getItem('chatAppMessages')) || [];
+        }
+
+        function renderMessages() {
+            const chatBox = document.getElementById('chatBox');
+            chatBox.innerHTML = '';
+            
+            getMessages().forEach(msg => {
+                const isMe = msg.username === MY_NAME;
+                
+                const msgDiv = document.createElement('div');
+                msgDiv.className = `message ${isMe ? 'me' : 'other'}`;
+
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'sender-name';
+                nameDiv.textContent = msg.username;
+                msgDiv.appendChild(nameDiv);
+
+                if (msg.text) {
+                    msgDiv.appendChild(document.createTextNode(msg.text));
+                }
+
+                if (msg.media) {
+                    if (msg.mediaType.startsWith('image/')) {
+                        const img = document.createElement('img');
+                        img.src = msg.media;
+                        msgDiv.appendChild(img);
+                    } else if (msg.mediaType.startsWith('video/')) {
+                        const video = document.createElement('video');
+                        video.src = msg.media;
+                        video.controls = true;
+                        msgDiv.appendChild(video);
+                    }
+                }
+                chatBox.appendChild(msgDiv);
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function sendMessage() {
+            const text = document.getElementById('messageInput').value.trim();
+            const file = document.getElementById('mediaInput').files[0];
+
+            if (!text && !file) return;
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    saveMsg(text, e.target.result, file.type);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                saveMsg(text, null, null);
+            }
+
+            document.getElementById('messageInput').value = '';
+            document.getElementById('mediaInput').value = '';
+        }
+
+        function saveMsg(text, mediaSrc, mediaType) {
+            try {
+                const messages = getMessages();
+                messages.push({ username: MY_NAME, text, media: mediaSrc, mediaType });
+                localStorage.setItem('chatAppMessages', JSON.stringify(messages));
+                renderMessages();
+            } catch (e) { alert("File quá lớn, bộ nhớ trình duyệt đã đầy!"); }
+        }
+
+        // Tự động tải lại tin nhắn khi có thay đổi từ tab khác
+        window.addEventListener('storage', renderMessages);
+        window.onload = renderMessages;
+    </script>
+</body>
+</html>
