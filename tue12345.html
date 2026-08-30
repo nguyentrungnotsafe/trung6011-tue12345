@@ -7,44 +7,98 @@
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .chat-container { width: 400px; background: #fff; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
-        .chat-header { background: #007bff; color: white; padding: 15px; text-align: center; font-size: 18px; font-weight: bold; }
+        
+        .chat-header { background: #007bff; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: bold; }
+        .call-buttons button { background: none; border: none; font-size: 18px; cursor: pointer; color: white; margin-left: 10px; }
+        
         .chat-box { height: 400px; padding: 15px; overflow-y: auto; background-color: #e5ddd5; display: flex; flex-direction: column; gap: 10px; }
         .message { max-width: 75%; padding: 10px; border-radius: 10px; font-size: 14px; word-wrap: break-word; }
-        
-        /* Phân biệt tin nhắn của mình và người khác */
         .message.me { align-self: flex-end; background-color: #dcf8c6; }
         .message.other { align-self: flex-start; background-color: #ffffff; }
-        
         .message .sender-name { font-weight: bold; margin-bottom: 5px; font-size: 11px; color: #555; }
-        .message img, .message video { max-width: 100%; border-radius: 8px; margin-top: 5px; }
-        .input-area { padding: 15px; background: #f0f0f0; display: flex; gap: 10px; }
+        .message img, .message video, .message audio { max-width: 100%; border-radius: 8px; margin-top: 5px; }
+        
+        .input-area { padding: 15px; background: #f0f0f0; display: flex; gap: 10px; align-items: center; }
         input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; outline: none; }
         .file-upload { position: relative; overflow: hidden; display: inline-block; }
         .file-upload input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; height: 100%; }
-        .file-btn { background: #6c757d; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; }
-        .send-btn { background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .icon-btn { background: #6c757d; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px;}
+        .send-btn { background: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="chat-container">
-        <div class="chat-header">Tài khoản: tue12345</div>
+        <div class="chat-header">
+            <span>Tài khoản: tue12345</span>
+            <div class="call-buttons">
+                <button onclick="alert('Để gọi điện qua mạng, cần tích hợp thư viện WebRTC!')">📞</button>
+                <button onclick="alert('Để gọi video qua mạng, cần tích hợp thư viện WebRTC!')">📹</button>
+            </div>
+        </div>
         <div class="chat-box" id="chatBox"></div>
         <div class="input-area">
             <input type="text" id="messageInput" placeholder="Nhập tin nhắn...">
+            
             <div class="file-upload">
-                <button class="file-btn">📷</button>
+                <button class="icon-btn">📷</button>
                 <input type="file" id="mediaInput" accept="image/*, video/*">
             </div>
+
+            <!-- Nút Ghi Âm -->
+            <button class="icon-btn" id="recordBtn" onclick="toggleRecording()">🎤</button>
+            
             <button class="send-btn" onclick="sendMessage()">Gửi</button>
         </div>
     </div>
 
     <script>
-        const MY_NAME = "tue12345"; // Tên đã được gài sẵn
-         
-        function getMessages() {
-            return JSON.parse(localStorage.getItem('chatAppMessages')) || [];
+        const MY_NAME = "tue12345"; 
+        
+        // --- PHẦN GHI ÂM (VOICE MESSAGE) ---
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        // Xin quyền sử dụng Micro ngay khi mở trang
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    audioChunks = []; 
+                    
+                    // Chuyển âm thanh thành dạng Base64 để lưu vào localStorage
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        saveMsg('', e.target.result, 'audio/webm');
+                    };
+                    reader.readAsDataURL(audioBlob);
+                };
+            })
+            .catch(err => console.log("Lỗi hoặc chưa cấp quyền Micro: ", err));
+
+        function toggleRecording() {
+            const btn = document.getElementById('recordBtn');
+            if (!mediaRecorder) {
+                alert("Bạn cần cho phép trang web sử dụng Micro để ghi âm!");
+                return;
+            }
+            if (!isRecording) {
+                mediaRecorder.start();
+                isRecording = true;
+                btn.style.backgroundColor = "red";
+                btn.textContent = "⏹️"; // Đổi thành icon dừng
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                btn.style.backgroundColor = "#6c757d";
+                btn.textContent = "🎤"; // Trở lại icon micro
+            }
         }
+        // ------------------------------------
+
+        function getMessages() { return JSON.parse(localStorage.getItem('chatAppMessages')) || []; }
 
         function renderMessages() {
             const chatBox = document.getElementById('chatBox');
@@ -52,7 +106,6 @@
             
             getMessages().forEach(msg => {
                 const isMe = msg.username === MY_NAME;
-                
                 const msgDiv = document.createElement('div');
                 msgDiv.className = `message ${isMe ? 'me' : 'other'}`;
 
@@ -61,9 +114,7 @@
                 nameDiv.textContent = msg.username;
                 msgDiv.appendChild(nameDiv);
 
-                if (msg.text) {
-                    msgDiv.appendChild(document.createTextNode(msg.text));
-                }
+                if (msg.text) msgDiv.appendChild(document.createTextNode(msg.text));
 
                 if (msg.media) {
                     if (msg.mediaType.startsWith('image/')) {
@@ -75,6 +126,11 @@
                         video.src = msg.media;
                         video.controls = true;
                         msgDiv.appendChild(video);
+                    } else if (msg.mediaType.startsWith('audio/')) {
+                        const audio = document.createElement('audio');
+                        audio.src = msg.media;
+                        audio.controls = true;
+                        msgDiv.appendChild(audio);
                     }
                 }
                 chatBox.appendChild(msgDiv);
@@ -90,9 +146,7 @@
 
             if (file) {
                 const reader = new FileReader();
-                reader.onload = function(e) {
-                    saveMsg(text, e.target.result, file.type);
-                };
+                reader.onload = function(e) { saveMsg(text, e.target.result, file.type); };
                 reader.readAsDataURL(file);
             } else {
                 saveMsg(text, null, null);
@@ -111,7 +165,6 @@
             } catch (e) { alert("File quá lớn, bộ nhớ trình duyệt đã đầy!"); }
         }
 
-        // Tự động tải lại tin nhắn khi có thay đổi từ tab khác
         window.addEventListener('storage', renderMessages);
         window.onload = renderMessages;
     </script>
